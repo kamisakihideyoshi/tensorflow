@@ -29,8 +29,6 @@ def build(model):
     model.add(Dropout(0.25))
     model.add(Conv2D(128, (4, 4), padding='same'))
     model.add(Activation('relu'))
-    # model.add(Conv2D(40, (2, 2), padding='same'))
-    # model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
     model.add(Dropout(0.5))
@@ -49,8 +47,6 @@ def read_image(path):
     path -- 圖片的路徑 (包含副檔名)
     '''
     im = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-    # im = im.astype('float64')
-    # im = cv2.resize(im, shape[:2], interpolation=cv2.INTER_LINEAR)
     im = im.reshape(im.shape[0], im.shape[1], 1)
     # 將圖片二值化xxx
     im //= 255
@@ -62,33 +58,19 @@ def read_data():
     csv -- 指定的 csv 檔案路徑 (包含副檔名)
     '''
     data = pd.DataFrame()
-    print('Reading images from folders')
     for t in string.ascii_uppercase:
         image_path = 'testing/'+t+'/'
+        print('Loading images from:', image_path)
         dir_list = os.listdir(image_path)
-        images = [f for f in dir_list if f[-4:] == '.png']
-        for image in images:
-            print('Now loading:', image_path+image)
-            d = pd.DataFrame([[image_path+image, ord(t)-65]], columns=['feature', 'label'])
-            data = data.append(d)
-            # feature.append(read_image(image_path+image))
-            # label.append(label)
+        images = [image_path + image_name for image_name in dir_list if image_name[-4:] == '.png']
+        d = pd.DataFrame(zip(images, [ord(t)-65]*len(images)), columns=['feature', 'label'])
+        data = data.append(d)
 
-
-    
-    # data = pd.read_csv(csv, index_col=0)
+    print('Data shuffling')
     # 打亂 Dataset 的順序
-    # print('Shuffling')
-    print('Reformating to ndarrayada')
     data = data.sample(frac=1)
     feature = [read_image(path) for path in data['feature'].values]
     feature = np.asarray(feature)
-    # target = data['target'].values
-    # # 將 label 轉為數字
-    # label = [ord(x)-65 for x in target]
-    # label = np.asarray(label)
-    # # print(np.transpose(np.vstack((target, label))))
-    # feature = data['feature'].values
     label = data['label'].values
     return feature, label
 
