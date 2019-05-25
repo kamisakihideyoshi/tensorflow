@@ -1,0 +1,6 @@
+# .gitignore
+*.png
+.vscode/*
+.DS_Store
+keras_ntut_verification_code/testing/*
+keras_ntut_verification_code/output/*

@@ -1,81 +1,129 @@
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout, Flatten
-from keras.layers import Conv2D
-from keras.layers import MaxPooling2D
-import keras
+from keras.layers import Conv1D, Conv2D
+from keras.layers import MaxPooling1D, MaxPooling2D
 from sklearn.model_selection import train_test_split
+
+import keras
 import pandas as pd
 import numpy as np
-from sklearn.utils import shuffle
-from keras.optimizers import SGD
 import cv2
+import string
 
-shape = (40,40,3)
+shape = (40, 40, 1)
+class_num = len(string.ascii_uppercase)
+
+# 強制 numpy 顯示完整的陣列
+np.set_printoptions(threshold=np.inf)
 
 
-def Build(model):
-    # 第一個部分的conv跟pool
-    model.add(Conv2D(32, (3, 3), input_shape=shape, padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(32, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(32, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(Dropout(0.5))
-    model.add(Conv2D(64, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(64, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(64, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(Dropout(0.5))
-    model.add(Conv2D(128, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(128, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(128, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(Dropout(0.5))
-    model.add(Conv2D(256, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(256, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(Conv2D(256, (3, 3), padding='same',activation='relu',kernel_initializer='he_normal'))
-    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+def build_old(model):
+    '''建立模型'''
+    model.add(Conv2D(40, (4, 4), input_shape=shape, padding='same'))
+    model.add(Activation('relu'))
+    model.add(Conv2D(40, (4, 4), padding='same'))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.25))
+    model.add(Conv2D(80, (4, 4), padding='same'))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
     model.add(Flatten())
-    model.add(Dense(512, activation='relu',kernel_initializer='he_normal'))
-    model.add(Dense(128, activation='relu',kernel_initializer='he_normal'))
-    model.add(Dense(26, activation='softmax'))
+    model.add(Dense(512))
+    model.add(Activation('relu'))
+    model.add(Dense(64))
+    model.add(Activation('relu'))
+    model.add(Dense(class_num))
+    model.add(Activation('softmax'))
     return model
 
-def read_data():
-    data = pd.read_csv('path.csv',index_col=0)
-    dic = {}
-    for i in range(65,91):
-        dic[chr(i)] = int(i-65)
-    data['target'] = pd.DataFrame(map(lambda x : dic[x],data['target']))
-    df = shuffle(data)
-    return df['path'],df['target']
+def build(model):
+    '''建立模型'''
+    model.add(MaxPooling2D(pool_size=(2, 2), input_shape=shape))
+    model.add(Conv2D(40, (4, 4), padding='same'))
+    model.add(Activation('relu'))
+    model.add(Conv2D(40, (4, 4), padding='same'))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.25))
+    model.add(Conv2D(80, (4, 4), padding='same'))
+    model.add(Activation('relu'))
+    # model.add(Conv2D(40, (2, 2), padding='same'))
+    # model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+    model.add(Dropout(0.5))
+    model.add(Dense(512))
+    model.add(Activation('relu'))
+    model.add(Dense(64))
+    model.add(Activation('relu'))
+    model.add(Dense(class_num))
+    model.add(Activation('softmax'))
+    model.summary()
+    return model
 
-def Train(model,feature_path,target):
-    ls = list(map(lambda x : cv2.imread(x),feature_path))
-    # print(ls[0].shape)
-    ls = np.array(ls)
-    print(target.shape)
-    train_feature,test_feature,train_label,test_label = train_test_split(ls,np.array(target),test_size = 0.2)
-    sgd = SGD(lr=0.3, decay=1e-6, momentum=0.9, nesterov=True) # 優化函數，設定學習率（lr）等參數
-    train_label = keras.utils.to_categorical(train_label)
-    test_label = keras.utils.to_categorical(test_label)
-    # # print(test_label[0])
-    model.compile(loss='categorical_crossentropy',optimizer='adam')
-    model.fit(train_feature,train_label, batch_size=50, epochs=5, verbose=1)
-    result = model.predict(test_feature)
-    result_bool = np.equal(result, test_label) 
-    true_num = np.sum(result_bool) 
-    print("") 
-    print("The accuracy of the model is %f" % (true_num/len(result_bool)))
-    
 
+def read_image(path):
+    '''從指定路徑讀取圖片
+    path -- 圖片的路徑 (包含副檔名)
+    '''
+    im = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    # im = im.astype('float64')
+    # im = cv2.resize(im, shape[:2], interpolation=cv2.INTER_LINEAR)
+    im = im.reshape(im.shape[0], im.shape[1], 1)
+    # 將圖片二值化xxx
+    im //= 255
+    return im
+
+
+def read_data(csv: str):
+    '''從 csv 檔讀取 feature 跟 label
+    csv -- 指定的 csv 檔案路徑 (包含副檔名)
+    '''
+    data = pd.read_csv(csv, index_col=0)
+    # 打亂 Dataset 的順序
+    data = data.sample(frac=1)
+    feature = [read_image(path) for path in data['path'].values]
+    feature = np.asarray(feature)
+    target = data['target'].values
+    # 將 label 轉為數字
+    label = [ord(x)-65 for x in target]
+    label = np.asarray(label)
+    # print(np.transpose(np.vstack((target, label))))
+    return feature, label
+
+
+def train(model, feature, label, epochs):
+    '''訓練指定的模型，並進行驗證'''
+    # 分割 Dataset
+    train_feature, test_feature, train_label, test_label = train_test_split(
+        feature, label, test_size=0.2)
+
+    train_label = keras.utils.to_categorical(train_label, class_num)
+    test_label = keras.utils.to_categorical(test_label, class_num)
+
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='adam', metrics=['accuracy'])
+    model.fit(train_feature, train_label,
+              batch_size=300, epochs=epochs, verbose=1, validation_split=0.2)
+
+    while input('One more?') == '':
+        model.fit(train_feature, train_label,
+              batch_size=300, epochs=1, verbose=1)
+
+    result = model.evaluate(test_feature, test_label, verbose=1)
+    print('Test lost:', result[0], ', accuracy:', result[1])
+    return model
 
 
 def main():
-    path,target = read_data()
-    # print(path,target)
+    feature, label = read_data('path.csv')
     model = Sequential()
-    model=Build(model)
-    Train(model,path,target)
+    model = build(model)
+    model = train(model, feature, label, epochs=10)
+    model.save('nportal_splitted.h5')
+
+
 if __name__ == '__main__':
     main()
